@@ -1,17 +1,16 @@
 const express = require("express");
 const router = express.Router();
+const bcrypt = require("bcryptjs");
 const auth = require("../../middleware/auth");
-const { check, validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
 const config = require("config");
-const bcrypt = require("bcryptjs");
+const { check, validationResult } = require("express-validator");
 
 const User = require("../../models/User");
 
-// @route   GET api/auth
-// @desc    Test Route
-// @access  Public
-
+// @route    GET api/auth
+// @desc     Get user by token
+// @access   Private
 router.get("/", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
@@ -23,13 +22,13 @@ router.get("/", auth, async (req, res) => {
 });
 
 // @route    POST api/auth
-// @desc     Register user
+// @desc     Authenticate user & get token
 // @access   Public
 router.post(
   "/",
   [
     check("email", "Please include a valid email").isEmail(),
-    check("password", "Password is required").exists({ min: 6 }),
+    check("password", "Password is required").exists(),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -37,7 +36,7 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, password } = req.body;
+    const { email, password } = req.body;
 
     try {
       let user = await User.findOne({ email });
@@ -45,7 +44,7 @@ router.post(
       if (!user) {
         return res
           .status(400)
-          .json({ errors: [{ msg: "Invalid credentials" }] });
+          .json({ errors: [{ msg: "Invalid Credentials" }] });
       }
 
       const isMatch = await bcrypt.compare(password, user.password);
@@ -53,7 +52,7 @@ router.post(
       if (!isMatch) {
         return res
           .status(400)
-          .json({ errors: [{ msg: "Invalid credentials" }] });
+          .json({ errors: [{ msg: "Invalid Credentials" }] });
       }
 
       const payload = {
@@ -65,7 +64,7 @@ router.post(
       jwt.sign(
         payload,
         config.get("jwtSecret"),
-        { expiresIn: 36000 },
+        { expiresIn: "5 days" },
         (err, token) => {
           if (err) throw err;
           res.json({ token });
